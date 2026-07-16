@@ -326,8 +326,13 @@ class MinesView(View):
 
 # ==================== KOMUTLAR ====================
 
+# ===== BLACKJACK =====
 @bot.command(name="bj", aliases=["blackjack"])
-async def blackjack_command(ctx, bet_input):
+async def blackjack_command(ctx, bet_input=None):
+    if bet_input is None:
+        await ctx.send("❌ Please specify a bet amount! Example: `.bj 100` or `.bj all`")
+        return
+    
     can_use, remaining = check_cooldown(ctx.author.id, "bj", 1)
     if not can_use:
         await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
@@ -359,8 +364,13 @@ async def blackjack_command(ctx, bet_input):
     
     view.message = await ctx.send(embed=embed, view=view)
 
+# ===== MINES =====
 @bot.command(name="mines")
-async def mines_command(ctx, bet_input, mine_count: int = 3):
+async def mines_command(ctx, bet_input=None, mine_count: int = 3):
+    if bet_input is None:
+        await ctx.send("❌ Please specify a bet amount! Example: `.mines 1000 3` or `.mines all`")
+        return
+    
     can_use, remaining = check_cooldown(ctx.author.id, "mines", 1)
     if not can_use:
         await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
@@ -390,15 +400,20 @@ async def mines_command(ctx, bet_input, mine_count: int = 3):
     
     view.message = await ctx.send(embed=embed, view=view)
 
+# ===== COINFLIP =====
 @bot.command(name="cf", aliases=["coinflip"])
-async def coinflip_command(ctx, choice: str, bet_input):
-    can_use, remaining = check_cooldown(ctx.author.id, "cf", 1)
-    if not can_use:
-        await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
+async def coinflip_command(ctx, choice: str = None, bet_input: str = None):
+    if choice is None or bet_input is None:
+        await ctx.send("❌ Please specify choice and bet! Example: `.cf yazı 100` or `.cf tura all`")
         return
     
     if choice.lower() not in ["yazı", "tura", "heads", "tails"]:
         await ctx.send("❌ Please choose 'yazı' or 'tura'!")
+        return
+    
+    can_use, remaining = check_cooldown(ctx.author.id, "cf", 1)
+    if not can_use:
+        await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
         return
     
     user_data = get_user_data(ctx.author.id)
@@ -430,8 +445,13 @@ async def coinflip_command(ctx, choice: str, bet_input):
         save_db()
         await msg.edit(content=f"**{ctx.author.display_name}** spent **{bet}** and chose **{user_choice}**\nThe coin spins...\n\nIt's **{result}**! You lost **{bet}** cowoncy.")
 
+# ===== SLOTS =====
 @bot.command(name="slots")
-async def slots_command(ctx, bet_input):
+async def slots_command(ctx, bet_input: str = None):
+    if bet_input is None:
+        await ctx.send("❌ Please specify a bet amount! Example: `.slots 100` or `.slots all`")
+        return
+    
     can_use, remaining = check_cooldown(ctx.author.id, "slots", 1)
     if not can_use:
         await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
@@ -476,8 +496,13 @@ async def slots_command(ctx, bet_input):
         save_db()
         await msg.edit(content=f"**{ctx.author.display_name}** bet 🎉 **{bet}**\n\n{result[0]} {result[1]} {result[2]}\n\nYou lost **{bet}** cowoncy!")
 
+# ===== LOTTERY =====
 @bot.command(name="lottery")
-async def lottery_command(ctx, bet_input):
+async def lottery_command(ctx, bet_input: str = None):
+    if bet_input is None:
+        await ctx.send("❌ Please specify a bet amount! Example: `.lottery 100` or `.lottery all`")
+        return
+    
     can_use, remaining = check_cooldown(ctx.author.id, "lottery", 1)
     if not can_use:
         await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
@@ -524,15 +549,20 @@ async def lottery_command(ctx, bet_input):
         save_db()
         await ctx.send(f"🎯 **{number}** (Winning: {win_number}) - You lost **{bet}** cowoncy!")
 
+# ===== HIGHLOW =====
 @bot.command(name="highlow")
-async def highlow_command(ctx, bet_input, guess: str):
-    can_use, remaining = check_cooldown(ctx.author.id, "highlow", 1)
-    if not can_use:
-        await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
+async def highlow_command(ctx, bet_input: str = None, guess: str = None):
+    if bet_input is None or guess is None:
+        await ctx.send("❌ Please specify bet and guess! Example: `.highlow 100 high` or `.highlow all low`")
         return
     
     if guess.lower() not in ["high", "low", "yuksek", "dusuk"]:
         await ctx.send("❌ Choose 'high' or 'low'!")
+        return
+    
+    can_use, remaining = check_cooldown(ctx.author.id, "highlow", 1)
+    if not can_use:
+        await ctx.send(f"❌ **{ctx.author.display_name}**! Slow down and try the command again in {remaining} seconds.")
         return
     
     user_data = get_user_data(ctx.author.id)
@@ -565,6 +595,7 @@ async def highlow_command(ctx, bet_input, guess: str):
         save_db()
         await ctx.send(f"📈 Number: {number} (Previous: {previous_number})\nWrong! You lost **{bet}** cowoncy.")
 
+# ===== DAILY =====
 @bot.command(name="daily")
 async def daily_reward(ctx):
     user_data = get_user_data(ctx.author.id)
@@ -607,14 +638,27 @@ async def daily_reward(ctx):
     
     await ctx.send(f"🎉 **{ctx.author.display_name}**, here is your daily 🎉 **{total_reward}** Cowoncy!\n🎉 You're on a **{user_data['daily_streak']}** daily streak!{crate_msg}")
 
-@bot.command(name="cash", aliases=["money", "balance", "bal"])
+# ===== CASH =====
+@bot.command(name="cash", aliases=["money", "balance", "bal", "cüzdan"])
 async def cash_command(ctx, member: discord.Member = None):
     if member is None:
         member = ctx.author
     
     user_data = get_user_data(member.id)
-    await ctx.send(f"**{member.display_name}**, you currently have **{user_data['cowoncy']}** cowoncy!")
+    
+    embed = discord.Embed(
+        title=f"💰 {member.display_name}'s Wallet",
+        color=0x00ff00
+    )
+    embed.add_field(name="💵 Cowoncy", value=f"{user_data['cowoncy']:,}", inline=True)
+    embed.add_field(name="🏦 Bank", value=f"{user_data['bank']:,}", inline=True)
+    embed.add_field(name="💎 Total", value=f"{user_data['cowoncy'] + user_data['bank']:,}", inline=True)
+    embed.add_field(name="📦 Weapon Crates", value=user_data["weapon_crates"], inline=True)
+    embed.set_footer(text=f"Level {user_data['level']} | XP: {user_data['xp']}/{get_level_xp(user_data['level'])}")
+    
+    await ctx.send(embed=embed)
 
+# ===== GIVE =====
 @bot.command(name="give")
 async def give_money(ctx, member: discord.Member, amount: int):
     if amount < 1:
@@ -634,6 +678,7 @@ async def give_money(ctx, member: discord.Member, amount: int):
     
     await ctx.send(f"✅ You gave **{amount}** cowoncy to {member.mention}!")
 
+# ===== XP =====
 @bot.command(name="xp")
 async def xp_command(ctx):
     user_data = get_user_data(ctx.author.id)
@@ -660,6 +705,7 @@ async def xp_command(ctx):
     
     await ctx.send(embed=embed)
 
+# ===== PROFILE =====
 @bot.command(name="profile")
 async def profile_command(ctx, member: discord.Member = None):
     if member is None:
@@ -675,7 +721,7 @@ async def profile_command(ctx, member: discord.Member = None):
     bar = "█" * filled + "░" * (bar_length - filled)
     
     embed = discord.Embed(
-        title=f"👤 {member.display_name}'nin Profili",
+        title=f"👤 {member.display_name}'s Profile",
         color=0x00ff00
     )
     embed.add_field(name="💰 Cowoncy", value=user_data["cowoncy"], inline=True)
@@ -690,6 +736,7 @@ async def profile_command(ctx, member: discord.Member = None):
     
     await ctx.send(embed=embed)
 
+# ===== MARRY =====
 @bot.command(name="marry")
 async def marry_command(ctx, member: discord.Member):
     if member.id == ctx.author.id:
@@ -715,6 +762,7 @@ async def marry_command(ctx, member: discord.Member):
     
     await ctx.send(f"💍 {ctx.author.mention} and {member.mention} got married! Congratulations! (+100 XP)")
 
+# ===== SHOP =====
 @bot.command(name="shop")
 async def shop_command(ctx):
     embed = discord.Embed(
@@ -740,6 +788,7 @@ async def shop_command(ctx):
     
     await ctx.send(embed=embed)
 
+# ===== BUY =====
 @bot.command(name="buy")
 async def buy_item(ctx, item: str):
     user_data = get_user_data(ctx.author.id)
@@ -768,6 +817,7 @@ async def buy_item(ctx, item: str):
     
     await ctx.send(f"✅ You bought **{item.upper()}**! Remaining: {user_data['cowoncy']} cowoncy (+10 XP)")
 
+# ===== TOP =====
 @bot.command(name="top")
 async def top_command(ctx, category: str = "global"):
     if category == "global":
@@ -920,8 +970,8 @@ async def give_xp(ctx, member: discord.Member, amount: int):
 @bot.command(name="help")
 async def help_command(ctx):
     embed = discord.Embed(
-        title="🎮 SantesHub - Kumar Tarzı Bot",
-        description="Tamamen Kumar botu klonu! Butonlu oyunlar, daily sistemi ve daha fazlası!",
+        title="🎮 SantesHub - OwO Tarzı Bot",
+        description="Tamamen OwO botu klonu! Butonlu oyunlar, daily sistemi ve daha fazlası!",
         color=0x00ff00
     )
     
@@ -950,7 +1000,7 @@ async def help_command(ctx):
         value="`.bj all` - Tüm paranla Blackjack oyna\n`.mines 1000 3` - 1000 parayla 3 mayınlı oyun başlat\n`.cf yazı 50` - 50 cowoncy ile yazı tura oyna",
         inline=False
     )
-    embed.set_footer(text="SantesHub | Kumar tarzı butonlu oyunlar! | .paragonder & .xpver sadece owner")
+    embed.set_footer(text="SantesHub v2.0 | OwO tarzı butonlu oyunlar! | .paragonder & .xpver sadece owner")
 
     await ctx.send(embed=embed)
 
@@ -974,12 +1024,27 @@ async def on_message(message):
     save_db()
     await bot.process_commands(message)
 
+# ==================== HATA YÖNETİMİ ====================
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f"❌ Eksik argüman! Doğru kullanım: `{ctx.prefix}{ctx.command.name} {ctx.command.usage or ''}`")
+    elif isinstance(error, commands.CommandNotFound):
+        # Sessizce geç - komut bulunamadı
+        pass
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send(f"❌ Geçersiz argüman! Doğru kullanım: `{ctx.prefix}{ctx.command.name} {ctx.command.usage or ''}`")
+    else:
+        print(f"Hata: {error}")
+        await ctx.send(f"❌ Bir hata oluştu: {str(error)[:100]}")
+
 # ==================== BOT OLAYI ====================
 @bot.event
 async def on_ready():
     print(f"✅ {bot.user} olarak giriş yapıldı!")
     print(f"📊 {len(db['users'])} kullanıcı yüklendi!")
     print(f"👑 Bot sahibi ID: {OWNER_ID}")
+    print(f"💰 Max 'all' bahis: {MAX_ALL_BET}")
     await bot.change_presence(activity=discord.Game(name=".help | SantesHub"))
 
 # Bot'u çalıştır
