@@ -5,6 +5,7 @@ import random
 import asyncio
 from datetime import datetime, timedelta
 import math
+import os
 
 # Bot ayarları
 BOT_TOKEN = os.getenv('BOT_TOKEN')
