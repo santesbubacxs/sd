@@ -834,4 +834,4 @@ async def on_ready():
 
 # Bot'u çalıştır
 if __name__ == "__main__":
-    bot.run(TOKEN)
+    bot.run(BOT_TOKEN)
