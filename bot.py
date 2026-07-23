@@ -70,48 +70,39 @@ class MailMonitor:
         self.user_id = user_id
         self.email = email
         self.password = password
-        self.channel = channel  # Botun paneli gönderdiği kanal
+        self.channel = channel
         self.token = None
-        self.seen_messages = set()  # Daha önce gönderilen mesaj ID'lerini tutar
+        self.seen_messages = set()
         self.is_running = True
 
     async def start_monitoring(self):
-        """Arka planda 7/24 maili dinler. Yeni mail gelince DM atar."""
-        # Token al
         self.token = get_token(self.email, self.password)
         if not self.token:
             return
 
-        # İlk başta gelen mailleri "görüldü" olarak işaretle (Eskileri tekrar atma)
         initial_messages = check_inbox(self.token)
         for msg in initial_messages:
             self.seen_messages.add(msg['id'])
 
-        # Sürekli döngü başlat
         while self.is_running:
             try:
                 messages = check_inbox(self.token)
                 for msg in messages:
-                    # Eğer bu mail daha önce görülmediyse
                     if msg['id'] not in self.seen_messages:
                         self.seen_messages.add(msg['id'])
                         
-                        # Mesaj içeriğini al
                         content = get_message_content(msg['id'], self.token)
                         
-                        # Kullanıcıyı bul
                         user = bot.get_user(self.user_id)
                         if user:
-                            # DM Embed'i oluştur
                             embed = discord.Embed(
-                                title="📩 SantesHub TempMail - Yeni Mesaj!",
+                                title="📩 Yeni Mesaj!",
                                 description=f"📧 **Mail Adresin:** `{self.email}`",
                                 color=discord.Color.green()
                             )
                             embed.add_field(name="📌 Konu", value=msg.get('subject', 'Konusuz'), inline=False)
                             embed.add_field(name="👤 Gönderen", value=msg.get('from', {}).get('address', 'Bilinmiyor'), inline=False)
                             
-                            # Mesaj içeriğini temizle ve göster
                             text_body = "Mesaj içeriği görüntülenemiyor."
                             if content and 'html' in content and content['html']:
                                 import re
@@ -119,20 +110,16 @@ class MailMonitor:
                             elif content and 'text' in content and content['text']:
                                 text_body = content['text'][0][:1000]
                             
-                            # İçeriği çok uzunsa parçala
                             if len(text_body) > 1000:
                                 text_body = text_body[:997] + "..."
                                 
                             embed.add_field(name="📝 Mesaj İçeriği", value=text_body, inline=False)
-                            embed.set_footer(text="SantesHub TempMail | Bot DM'den iletti")
                             
                             try:
                                 await user.send(embed=embed)
                             except:
-                                # DM kapalıysa kanala düşsün
                                 await self.channel.send(f"{user.mention} DM'lerin kapalı, mesaj burada:\n{text_body[:200]}...")
 
-                # 15 saniye bekle ve tekrar kontrol et
                 await asyncio.sleep(15)
                 
             except Exception as e:
@@ -146,30 +133,41 @@ class MailMonitor:
 class TempMailView(View):
     def __init__(self):
         super().__init__(timeout=300)
-        self.monitor = None
 
     @discord.ui.button(label="📧 Yeni Geçici Mail Oluştur", style=discord.ButtonStyle.success)
     async def generate_mail(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer(ephemeral=False)
 
-        # 1. Mail oluştur
         email, password, user_id = create_temp_email()
         if not email:
+            # Hata varsa sadece kullanıcı görsün
             await interaction.followup.send("❌ Mail oluşturulurken hata oluştu.", ephemeral=True)
             return
 
-        # 2. Embed'i kanala at
-        embed = discord.Embed(
-            title="📧 SantesHub TempMail Oluşturuldu!",
-            description=f"🟢 **Mail Adresin:** `{email}`\n\n📬 **Bu maile gelen tüm mesajlar bot tarafından size Özel Mesaj (DM) olarak iletilecektir!**",
+        # ✅ KANALA SADECE BİLDİRİM AT (Mail adresi GÖRÜNMEZ)
+        public_embed = discord.Embed(
+            title="📧 TempMail Oluşturuldu!",
+            description=f"✅ {interaction.user.mention} için geçici bir mail adresi oluşturuldu.\n📬 **Gelen mesajlar DM'den iletilecektir.**",
             color=discord.Color.blue()
         )
-        embed.set_footer(text="SantesHub TempMail System | DM'lerin açık olsun!")
-        await interaction.followup.send(embed=embed)
+        public_embed.set_footer(text="Mail adresi özel mesaj (DM) olarak gönderildi.")
+        await interaction.followup.send(embed=public_embed)
+
+        # ✅ MAİL ADRESİNİ SADECE KULLANICININ DM'SİNE GÖNDER (Kimse görmez)
+        try:
+            dm_embed = discord.Embed(
+                title="🔒 Sizin Özel TempMail Adresiniz",
+                description=f"🟢 **Mail Adresiniz:** `{email}`\n\n📬 Bu adrese gelen **tüm mesajlar** buradan size DM olarak iletilecektir.\n\n*Bu mail adresini kimseyle paylaşmayın, sadece siz görebilirsiniz.*",
+                color=discord.Color.green()
+            )
+            dm_embed.set_footer(text="SantesHub TempMail | Gizli Mail Sistemi")
+            await interaction.user.send(embed=dm_embed)
+        except:
+            # DM kapalıysa kanala düşsün ama sadece kullanıcı görsün (ephemeral)
+            await interaction.followup.send(f"⚠️ DM'leriniz kapalı olduğu için mail adresinizi burada veriyorum:\n`{email}`\n*(Bu mesajı sadece siz görebilirsiniz)*", ephemeral=True)
 
         # 3. DM Takip sistemini başlat
         monitor = MailMonitor(interaction.user.id, email, password, interaction.channel)
-        self.monitor = monitor
         asyncio.create_task(monitor.start_monitoring())
 
 # ==================== KOMUTLAR ====================
@@ -178,10 +176,10 @@ class TempMailView(View):
 async def tempmail_panel(ctx):
     embed = discord.Embed(
         title="📧 SantesHub TempMail System",
-        description="Aşağıdaki butona basarak **geçici bir mail adresi** oluşturun.\n\n✅ **Özellik:** Oluşturulan maile gelen her mesaj, **Discord DM (Özel Mesaj)** üzerinden size iletilir!",
+        description="Aşağıdaki butona basarak **gizli, geçici bir mail adresi** oluşturun.\n\n✅ **Özellik:** Mail adresi **sadece size özel** olarak DM'den gönderilir. Gelen tüm mesajlar yine DM'den iletilir!",
         color=discord.Color.purple()
     )
-    embed.set_footer(text="SantesHub TempMail | DM'lerinizin açık olduğundan emin olun!")
+    embed.set_footer(text="SantesHub TempMail | Sadece size özel")
     await ctx.send(embed=embed, view=TempMailView())
 
 # ==================== OWNER KOMUTLARI ====================
@@ -197,12 +195,17 @@ async def owner_send_mail(ctx, member: discord.Member = None):
         await ctx.send("❌ Mail oluşturma hatası.")
         return
 
-    embed = discord.Embed(
-        title="👑 Owner Özel TempMail",
-        description=f"**{member.mention}** için özel mail oluşturuldu.\n📧 **Mail:** `{email}`",
-        color=discord.Color.gold()
-    )
-    await ctx.send(embed=embed)
+    # Owner'dan gelen mail de sadece hedef kişiye DM olarak gitsin
+    try:
+        embed = discord.Embed(
+            title="👑 Özel TempMail",
+            description=f"📧 **Mail Adresiniz:** `{email}`\n(Bu mail owner tarafından oluşturuldu.)",
+            color=discord.Color.gold()
+        )
+        await member.send(embed=embed)
+        await ctx.send(f"✅ {member.mention} adlı kişiye özel mail DM olarak gönderildi.")
+    except:
+        await ctx.send(f"❌ {member.mention} adlı kişinin DM'i kapalı, mail gönderilemedi.")
 
 @bot.command(name="maildurum")
 async def owner_mail_status(ctx):
@@ -211,8 +214,8 @@ async def owner_mail_status(ctx):
         return
 
     embed = discord.Embed(
-        title="📊 SantesHub TempMail Sistem Durumu",
-        description="✅ **API Durumu:** `mail.tm` ile bağlantı aktif.\n✅ **Bot Durumu:** Çevrimiçi.\n🟢 **Özellik:** DM İletim sistemi aktif.",
+        title="📊 SantesHub TempMail Durumu",
+        description="✅ **API Durumu:** `mail.tm` bağlantısı aktif.\n✅ **Özellik:** Mail adresleri DM'den gizli gönderiliyor.",
         color=discord.Color.green()
     )
     await ctx.send(embed=embed)
@@ -233,7 +236,7 @@ async def help_command(ctx):
         title="📖 SantesHub TempMail Yardım",
         color=discord.Color.blue()
     )
-    embed.add_field(name="📧 `.tempmail`", value="TempMail sistemini açar. Mail oluşturur ve tüm mesajlar DM'den gelir.", inline=False)
+    embed.add_field(name="📧 `.tempmail`", value="TempMail panelini açar. Mail adresi sadece size DM olarak gelir.", inline=False)
     embed.add_field(name="👑 **Owner Komutları**", value="`.mailgonder`, `.maildurum`, `.temizle`", inline=False)
     embed.set_footer(text="SantesHub TempMail")
     await ctx.send(embed=embed)
@@ -242,7 +245,7 @@ async def help_command(ctx):
 async def on_ready():
     print(f"✅ {bot.user} olarak giriş yapıldı!")
     print(f"👑 Owner ID: {OWNER_ID}")
-    await bot.change_presence(activity=discord.Game(name=".help | DM TempMail"))
+    await bot.change_presence(activity=discord.Game(name=".help | Gizli TempMail"))
 
 if __name__ == "__main__":
     bot.run(TOKEN)
